@@ -122,7 +122,8 @@ async function vCliente(app, [id, pest = 'resumen'], vigente) {
     <a href="#/clientes" class="link">← Clientes</a>
     <div class="fila mt mb"><h2 class="grow">${esc(c.nombre)}</h2>
       <button class="btn ghost sm" id="btnEnlace">Enlace</button>
-      <button class="btn ghost sm" id="btnVer">Ver como cliente</button></div>
+      <button class="btn ghost sm" id="btnVer">Ver como cliente</button>
+      <button class="icon-btn" id="btnBorrarCli" title="Borrar cliente" aria-label="Borrar cliente" style="color:var(--danger)">🗑</button></div>
     <div class="seg mb">${PESTANAS.map(([k, n]) => `<button data-p="${k}" class="${k === pest ? 'on' : ''}">${n}</button>`).join('')}</div>
     <div id="pest"></div>`;
   $$('.seg [data-p]', app).forEach(b => b.onclick = () => ir(`cliente/${id}/${b.dataset.p}`));
@@ -131,6 +132,7 @@ async function vCliente(app, [id, pest = 'resumen'], vigente) {
     try { await datos.entrarComoCliente(c.id, c.codigo); ir('hoy'); }
     catch (e) { toast(e.message); }
   };
+  $('#btnBorrarCli', app).onclick = () => borrarCliente(c);
   const cont = $('#pest', app);
 
   if (pest === 'resumen') return pestResumen(cont, c, ss, r);
@@ -244,10 +246,14 @@ function pestFicha(cont, c) {
     if (!await confirmar('Se genera un enlace nuevo para dispositivos nuevos. Los móviles donde ya lo abrió siguen teniendo acceso.', { ok: 'Generar' })) return;
     c.codigo = nuevoCodigo(); await datos.clientes.guardar(c); enlace(c);
   };
-  $('#btnBorrar', cont).onclick = async () => {
-    if (!await confirmar(`¿Borrar a ${c.nombre} y todas sus sesiones? No se puede deshacer.`, { ok: 'Borrar', peligro: true })) return;
-    await datos.clientes.borrar(c.id); ir('clientes');
-  };
+  $('#btnBorrar', cont).onclick = () => borrarCliente(c);
+}
+
+async function borrarCliente(c) {
+  if (!await confirmar(`¿Borrar a ${c.nombre} y todas sus sesiones? Su enlace dejará de funcionar. No se puede deshacer.`, { ok: 'Borrar', peligro: true })) return;
+  await datos.clientes.borrar(c.id);
+  toast('Cliente borrado');
+  ir('clientes');
 }
 
 function enlace(c) {

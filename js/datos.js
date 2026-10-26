@@ -170,8 +170,12 @@ async function crearFirebase() {
     },
     async borrar(col, id) {
       if (col === 'clientes') {
-        const ss = await F.getDocs(F.collection(fs, 'clientes', id, 'sesiones'));
-        await Promise.all(ss.docs.map(d => F.deleteDoc(d.ref)));
+        // Primero lo que cuelga del cliente: sin la ficha, las reglas ya no dejarían borrarlo.
+        const [ss, acc] = await Promise.all([
+          F.getDocs(F.collection(fs, 'clientes', id, 'sesiones')),
+          F.getDocs(F.collection(fs, 'clientes', id, 'accesos')),
+        ]);
+        await Promise.all([...ss.docs, ...acc.docs].map(d => F.deleteDoc(d.ref)));
       }
       await F.deleteDoc(F.doc(fs, col, id));
     },
