@@ -5,7 +5,7 @@ import { $, $$, esc, uid, hoy, lunesDe, textoHace, haceDias, nuevoCodigo, clonar
 import { GRUPOS } from '../biblioteca.js';
 import { avance, siguienteHueco, etiquetaSemana, renovarIds, nuevoPrograma } from '../programa.js';
 import { ajusteVolumen } from '../progresion.js';
-import { programaAndrea, ALTA_ANDREA } from '../andrea.js';
+import { programaAndrea, ALTA_ANDREA, VERSION_ANDREA } from '../andrea.js';
 import { nombreSesion, fechaSesion, htmlDetalleSesion, montarProgreso, htmlAlta, leerAlta, ALTA_VACIA } from './comunes.js';
 import { editorPrograma } from './editor.js';
 import { importarAntiguo, descargarJSON } from './cliente.js';
@@ -38,7 +38,8 @@ async function vClientes(app, _, vigente) {
   if (!vigente()) return;
   const filas = cs.map((c, i) => ({ c, r: resumen(c, todas[i]) }))
     .sort((a, b) => b.r.alertas.length - a.r.alertas.length || a.c.nombre.localeCompare(b.c.nombre));
-  const hayAndrea = cs.some(c => c.semilla === 'andrea');
+  const andrea = cs.find(c => c.semilla === 'andrea');
+  const andreaVieja = andrea && (andrea.semillaVersion || 1) < VERSION_ANDREA;
 
   app.innerHTML = `
     <div class="fila mb"><div class="grow"><h2>Clientes</h2><p class="sub">${cs.length} activos</p></div>
@@ -58,11 +59,26 @@ async function vClientes(app, _, vigente) {
         </div>
         ${r.alertas.length ? `<div class="fila mt">${r.alertas.map(a => `<span class="badge ${a.startsWith('Molestia') ? 'danger' : 'gold'}">${esc(a)}</span>`).join('')}</div>` : ''}
       </div>`).join('') || `<div class="vacio">Todavía no tienes clientes.</div>`}
-    ${hayAndrea ? '' : `<button class="btn ghost full mt" id="btnAndrea">Crear a Andrea con su mesociclo 3</button>`}`;
+    ${andrea ? '' : `<button class="btn ghost full mt" id="btnAndrea">Crear a Andrea con su programa nuevo</button>`}
+    ${andreaVieja ? `<button class="btn full mt" id="btnAndreaAct">Actualizar el programa de Andrea (mesociclos 1 y 2)</button>` : ''}`;
 
   $$('[data-id]', app).forEach(el => el.onclick = () => ir('cliente/' + el.dataset.id));
   $('#btnNuevo', app).onclick = nuevoCliente;
   $('#btnAndrea', app)?.addEventListener('click', crearAndrea);
+  $('#btnAndreaAct', app)?.addEventListener('click', () => actualizarAndrea(andrea));
+}
+
+/* Sustituye el programa de una Andrea creada con una versión anterior.
+   Las sesiones (y su historial importado) no se tocan. */
+async function actualizarAndrea(c) {
+  if (!await confirmar('Se sustituye su programa por el nuevo (mesociclos 1 y 2). Las sesiones que ya tenga se conservan.', { ok: 'Actualizar' })) return;
+  c.programa = programaAndrea();
+  c.semillaVersion = VERSION_ANDREA;
+  c.alta = { ...clonar(ALTA_ANDREA), ...(c.alta?.completada ? c.alta : {}), notas: ALTA_ANDREA.notas };
+  await datos.clientes.guardar(c);
+  await datos.plantillas.guardar({ ...renovarIds(c.programa), nombre: 'Hipertrofia tren inferior + espalda (4 días, 2 mesociclos)' });
+  toast('Programa de Andrea actualizado');
+  ir(`cliente/${c.id}/programa`);
 }
 
 function nuevoCliente() {
@@ -81,11 +97,11 @@ function nuevoCliente() {
 
 async function crearAndrea() {
   const prog = programaAndrea();
-  const c = { id: uid(), semilla: 'andrea', nombre: 'Andrea', codigo: nuevoCodigo(), alta: clonar(ALTA_ANDREA),
+  const c = { id: uid(), semilla: 'andrea', semillaVersion: VERSION_ANDREA, nombre: 'Andrea', codigo: nuevoCodigo(), alta: clonar(ALTA_ANDREA),
     programa: prog, notas: 'Tras 10 semanas: subió mucho la cadena posterior; jalón, remo T y dominadas estancados. Top sets se hacían a 8-10 reps en vez de 5-6.', creado: hoy() };
   await datos.clientes.guardar(c);
   // La misma estructura queda como plantilla para reutilizarla con otras clientas.
-  await datos.plantillas.guardar({ ...renovarIds(prog), nombre: 'Hipertrofia tren inferior + espalda (4 días)' });
+  await datos.plantillas.guardar({ ...renovarIds(prog), nombre: 'Hipertrofia tren inferior + espalda (4 días, 2 mesociclos)' });
   toast('Andrea creada. Importa su historial desde su ficha.');
   ir(`cliente/${c.id}/resumen`);
 }

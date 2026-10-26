@@ -1,4 +1,6 @@
-/* Andrea: su mesociclo 3 y el importador del plan antiguo (un HTML por cliente).
+/* Andrea: su programa nuevo y el importador del plan antiguo (un HTML por cliente).
+   Su plan antiguo tuvo dos mesociclos; aquí siguen el 3.º y el 4.º, que en
+   esta app se llaman mesociclo 1 y 2.
 
    El plan antiguo guardaba en localStorage claves como
      meso2-dia3-hip-thrust-top-mc2-s1-carga = "70"
@@ -20,57 +22,117 @@ function ej(ejercicio, rol, series, reps, rir, descanso, extra = {}) {
 
 const RAMPA = { extra: { desde: 3, mas: 1 } };
 
+/* Versión del programa que crea el botón. Si se sube, el panel ofrece
+   actualizar a una Andrea ya creada (sin tocar sus sesiones). */
+export const VERSION_ANDREA = 2;
+
 export function programaAndrea() {
   return {
     id: uid(),
-    nombre: 'Hipertrofia pierna, glúteo y espalda',
-    descripcion: 'Bloque 3 tras dos mesociclos (acumulación e intensificación). Vuelve a acumular volumen sobre cargas más altas, con la espalda como prioridad.',
-    mesociclos: [{
-      id: uid(),
-      nombre: 'Mesociclo 3 · Reacumulación',
-      foco: 'Más volumen con RIR 1 en back off y accesorios. Espalda dos días de verdad. Desde el microciclo 3, una serie más en glúteo y espalda. Objetivo: la primera dominada estricta (se prueba en la descarga).',
-      semanas: 5,
-      descarga: true,
-      dias: [
-        { id: uid(), nombre: 'Día 1 · Pierna', enfoque: 'Cuádriceps · aductor · femoral · gemelo', ejercicios: [
-          ej('adductor', 'normal', 3, [12, 15], 1, 75),
-          ej('sentadilla-pendular', 'top', 1, [5, 6], 0, 180, { notas: 'Si salen 7 reps o más, el peso va corto: la app te sube el doble.' }),
-          ej('sentadilla-pendular', 'backoff', 2, [6, 9], 1, 150),
-          ej('prensa-piernas', 'normal', 3, [8, 10], 1, 120),
-          ej('extension-cuadriceps', 'normal', 3, [10, 12], 1, 90),
-          ej('femoral-sentado', 'normal', 3, [10, 12], 1, 90, { notas: 'Nuevo: sustituye al femoral tumbado.' }),
-          ej('elevacion-talon-sentado', 'normal', 3, [12, 15], 1, 60),
-        ] },
-        { id: uid(), nombre: 'Día 2 · Torso', enfoque: 'Press · jalón · remo · hombro · tríceps', ejercicios: [
-          ej('press-banca-inclinado', 'top', 1, [5, 6], 0, 150),
-          ej('press-banca-inclinado', 'backoff', 2, [6, 9], 1, 120),
-          ej('jalon-neutro', 'normal', 3, [10, 12], 1, 90, { notas: 'Nuevo.', ...RAMPA }),
-          ej('remo-pecho-apoyado', 'normal', 3, [8, 12], 1, 90, { notas: 'Nuevo.', ...RAMPA }),
-          ej('press-militar-mancuernas', 'normal', 3, [8, 10], 1, 90),
-          ej('extension-triceps-cuerda', 'normal', 3, [12, 15], 1, 60),
-          ej('dominadas-elastico', 'normal', 2, [5, 8], 2, 120, { notas: 'Técnica: subida limpia, sin balanceo, deja 1-2 de margen.' }),
-        ] },
-        { id: uid(), nombre: 'Día 3 · Pierna', enfoque: 'Cadena posterior · glúteo', ejercicios: [
-          ej('hip-thrust', 'top', 1, [5, 6], 0, 180),
-          ej('hip-thrust', 'backoff', 2, [6, 9], 1, 150, RAMPA),
-          ej('peso-muerto-rumano', 'top', 1, [5, 6], 0, 180),
-          ej('peso-muerto-rumano', 'backoff', 2, [6, 9], 1, 150),
-          ej('bulgaras-gluteos', 'normal', 3, [10, 12], 1, 90, { notas: 'Vuelven en lugar de la zancada.' }),
-          ej('abduccion-cadera', 'normal', 3, [12, 15], 1, 60, { notas: 'Nuevo: glúteo medio.', ...RAMPA }),
-          ej('patada-gluteo-polea', 'normal', 2, [12, 15], 1, 60),
-          ej('elevacion-talon-pie', 'normal', 3, [12, 15], 1, 60),
-        ] },
-        { id: uid(), nombre: 'Día 4 · Espalda', enfoque: 'Tirón · bíceps · core', ejercicios: [
-          ej('rack-chin', 'normal', 3, [6, 10], 1, 120, { notas: 'Al final de la última serie, una negativa lenta (4-5 s).', ...RAMPA }),
-          ej('remo-t', 'normal', 3, [8, 12], 1, 120),
-          ej('jalon-unilateral', 'normal', 3, [10, 12], 1, 75, { notas: 'Nuevo: cada lado por separado.' }),
-          ej('pullover-polea', 'normal', 3, [12, 15], 1, 60, { notas: 'Nuevo: dorsal sin bíceps.' }),
-          ej('curl-biceps-mancuernas', 'normal', 3, [10, 12], 1, 60),
-          ej('elevacion-cadera', 'normal', 3, [15, 30], 1, 60),
-          ej('abdominales-crunch-polea', 'normal', 3, [12, 20], 1, 60),
-        ] },
-      ],
-    }],
+    nombre: 'Hipertrofia pierna, glúteo y espalda · Bloque 2',
+    descripcion: 'Continúa los dos mesociclos del plan antiguo (acumulación e intensificación). Primero vuelve a acumular volumen sobre cargas más altas, con la espalda como prioridad; después intensifica para fijar esas cargas.',
+    mesociclos: [mesoAcumulacion(), mesoIntensificacion()],
+  };
+}
+
+function mesoAcumulacion() {
+  return {
+    id: uid(),
+    nombre: 'Mesociclo 1 · Reacumulación',
+    foco: 'Más volumen con RIR 1 en back off y accesorios. Espalda dos días de verdad. Desde el microciclo 3, una serie más en glúteo y espalda. En la descarga: prueba de la primera dominada estricta.',
+    semanas: 5,
+    descarga: true,
+    dias: [
+      { id: uid(), nombre: 'Día 1 · Pierna', enfoque: 'Cuádriceps · aductor · femoral · gemelo', ejercicios: [
+        ej('adductor', 'normal', 3, [12, 15], 1, 75),
+        ej('sentadilla-pendular', 'top', 1, [5, 6], 0, 180, { notas: 'Si salen 7 reps o más, el peso va corto: la app te sube el doble.' }),
+        ej('sentadilla-pendular', 'backoff', 2, [6, 9], 1, 150),
+        ej('prensa-piernas', 'normal', 3, [8, 10], 1, 120),
+        ej('extension-cuadriceps', 'normal', 3, [10, 12], 1, 90),
+        ej('femoral-sentado', 'normal', 3, [10, 12], 1, 90, { notas: 'Nuevo: sustituye al femoral tumbado.' }),
+        ej('elevacion-talon-sentado', 'normal', 3, [12, 15], 1, 60),
+      ] },
+      { id: uid(), nombre: 'Día 2 · Torso', enfoque: 'Press · jalón · remo · hombro · tríceps', ejercicios: [
+        ej('press-banca-inclinado', 'top', 1, [5, 6], 0, 150),
+        ej('press-banca-inclinado', 'backoff', 2, [6, 9], 1, 120),
+        ej('jalon-neutro', 'normal', 3, [10, 12], 1, 90, { notas: 'Nuevo.', ...RAMPA }),
+        ej('remo-pecho-apoyado', 'normal', 3, [8, 12], 1, 90, { notas: 'Nuevo.', ...RAMPA }),
+        ej('press-militar-mancuernas', 'normal', 3, [8, 10], 1, 90),
+        ej('extension-triceps-cuerda', 'normal', 3, [12, 15], 1, 60),
+        ej('dominadas-elastico', 'normal', 2, [5, 8], 2, 120, { notas: 'Técnica: subida limpia, sin balanceo, deja 1-2 de margen.' }),
+      ] },
+      { id: uid(), nombre: 'Día 3 · Pierna', enfoque: 'Cadena posterior · glúteo', ejercicios: [
+        ej('hip-thrust', 'top', 1, [5, 6], 0, 180),
+        ej('hip-thrust', 'backoff', 2, [6, 9], 1, 150, RAMPA),
+        ej('peso-muerto-rumano', 'top', 1, [5, 6], 0, 180),
+        ej('peso-muerto-rumano', 'backoff', 2, [6, 9], 1, 150),
+        ej('bulgaras-gluteos', 'normal', 3, [10, 12], 1, 90, { notas: 'Vuelven en lugar de la zancada.' }),
+        ej('abduccion-cadera', 'normal', 3, [12, 15], 1, 60, { notas: 'Nuevo: glúteo medio.', ...RAMPA }),
+        ej('patada-gluteo-polea', 'normal', 2, [12, 15], 1, 60),
+        ej('elevacion-talon-pie', 'normal', 3, [12, 15], 1, 60),
+      ] },
+      { id: uid(), nombre: 'Día 4 · Espalda', enfoque: 'Tirón · bíceps · core', ejercicios: [
+        ej('rack-chin', 'normal', 3, [6, 10], 1, 120, { notas: 'Al final de la última serie, una negativa lenta (4-5 s).', ...RAMPA }),
+        ej('remo-t', 'normal', 3, [8, 12], 1, 120),
+        ej('jalon-unilateral', 'normal', 3, [10, 12], 1, 75, { notas: 'Nuevo: cada lado por separado.' }),
+        ej('pullover-polea', 'normal', 3, [12, 15], 1, 60, { notas: 'Nuevo: dorsal sin bíceps.' }),
+        ej('curl-biceps-mancuernas', 'normal', 3, [10, 12], 1, 60),
+        ej('elevacion-cadera', 'normal', 3, [15, 30], 1, 60),
+        ej('abdominales-crunch-polea', 'normal', 3, [12, 20], 1, 60),
+      ] },
+    ],
+  };
+}
+
+/* Mismo esqueleto: los básicos (pendular, hip thrust, rumano, press, remo T,
+   jalones) siguen para que la sugerencia de carga continúe desde el bloque
+   anterior. Cambia la intensidad y rotan 3 accesorios. */
+function mesoIntensificacion() {
+  return {
+    id: uid(),
+    nombre: 'Mesociclo 2 · Intensificación',
+    foco: 'Menos volumen y más cerca del fallo: back off a RIR 0 y 6-8 reps; accesorios de máquina a RIR 0. Rotan tres accesorios (prensa → búlgaras de cuádriceps, búlgaras de glúteo → step-up, press militar → elevaciones laterales). En la descarga: segunda prueba de dominada estricta.',
+    semanas: 4,
+    descarga: true,
+    dias: [
+      { id: uid(), nombre: 'Día 1 · Pierna', enfoque: 'Cuádriceps · aductor · femoral · gemelo', ejercicios: [
+        ej('adductor', 'normal', 3, [10, 12], 1, 75),
+        ej('sentadilla-pendular', 'top', 1, [5, 6], 0, 180),
+        ej('sentadilla-pendular', 'backoff', 2, [6, 8], 0, 150, { notas: 'RIR 0: la última rep cuesta de verdad, pero con técnica limpia.' }),
+        ej('bulgaras-cuadriceps', 'normal', 3, [8, 10], 1, 120, { notas: 'Vuelven en lugar de la prensa.' }),
+        ej('extension-cuadriceps', 'normal', 3, [10, 12], 0, 90),
+        ej('femoral-sentado', 'normal', 3, [8, 10], 0, 90),
+        ej('elevacion-talon-sentado', 'normal', 3, [10, 12], 1, 60),
+      ] },
+      { id: uid(), nombre: 'Día 2 · Torso', enfoque: 'Press · jalón · remo · hombro · tríceps', ejercicios: [
+        ej('press-banca-inclinado', 'top', 1, [5, 6], 0, 150),
+        ej('press-banca-inclinado', 'backoff', 2, [6, 8], 0, 120),
+        ej('jalon-neutro', 'normal', 3, [8, 10], 0, 90),
+        ej('remo-pecho-apoyado', 'normal', 3, [8, 10], 0, 90),
+        ej('elevaciones-laterales-polea', 'normal', 3, [12, 15], 0, 60, { notas: 'Vuelven en lugar del press militar.' }),
+        ej('extension-triceps-cuerda', 'normal', 2, [12, 15], 0, 60),
+        ej('dominadas-elastico', 'normal', 2, [4, 6], 2, 120, { notas: 'Técnica con una banda más fina que en el mesociclo 1.' }),
+      ] },
+      { id: uid(), nombre: 'Día 3 · Pierna', enfoque: 'Cadena posterior · glúteo', ejercicios: [
+        ej('hip-thrust', 'top', 1, [5, 6], 0, 180),
+        ej('hip-thrust', 'backoff', 2, [6, 8], 0, 150),
+        ej('peso-muerto-rumano', 'top', 1, [5, 6], 0, 180),
+        ej('peso-muerto-rumano', 'backoff', 2, [6, 8], 0, 150),
+        ej('step-up', 'normal', 3, [8, 10], 1, 90, { notas: 'Nuevo: cajón a la altura de la rodilla, empuja con el talón.' }),
+        ej('abduccion-cadera', 'normal', 3, [12, 15], 0, 60),
+        ej('patada-gluteo-polea', 'normal', 2, [10, 12], 0, 60),
+        ej('elevacion-talon-pie', 'normal', 3, [10, 12], 1, 60),
+      ] },
+      { id: uid(), nombre: 'Día 4 · Espalda', enfoque: 'Tirón · bíceps · core', ejercicios: [
+        ej('rack-chin', 'normal', 3, [5, 8], 1, 120, { notas: 'Banda más fina. Negativa lenta (4-5 s) al final de cada serie.' }),
+        ej('remo-t', 'normal', 3, [6, 10], 0, 120),
+        ej('jalon-unilateral', 'normal', 2, [8, 10], 0, 75),
+        ej('pullover-polea', 'normal', 2, [10, 12], 0, 60),
+        ej('curl-biceps-mancuernas', 'normal', 3, [8, 10], 0, 60),
+        ej('elevacion-cadera', 'normal', 3, [15, 30], 1, 60),
+        ej('abdominales-crunch-polea', 'normal', 3, [10, 15], 1, 60),
+      ] },
+    ],
   };
 }
 
@@ -78,7 +140,7 @@ export const ALTA_ANDREA = {
   completada: true, objetivo: 'Hipertrofia de pierna, glúteo y espalda. Primera dominada sin ayuda.',
   nivel: 'intermedio', dias: 4, duracion: '60-75 min', altura: 175, peso: 62,
   material: 'Gimnasio completo (pendular, hip thrust, poleas, mancuernas, barra, banda elástica)',
-  lesiones: 'Ninguna indicada', notas: 'Viene de 10 semanas: mesociclo 1 (acumulación) y 2 (intensificación).',
+  lesiones: 'Ninguna indicada', notas: 'Viene de 10 semanas en el plan antiguo (acumulación + intensificación). En esta app empieza en el mesociclo 1.',
 };
 
 /* ---------- importador del plan antiguo ---------- */

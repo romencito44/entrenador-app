@@ -151,3 +151,20 @@ test('todas las claves de ejercicio del plan antiguo de Andrea se importan', t =
   const importadas = ss.reduce((a, s) => a + s.ejercicios.length, 0);
   assert.equal(importadas, claves.size);
 });
+
+test('programa de Andrea: mesociclo 1 (5+1) y mesociclo 2 (4+1)', () => {
+  const p = programaAndrea();
+  assert.deepEqual(p.mesociclos.map(m => m.nombre.split(' · ')[0]), ['Mesociclo 1', 'Mesociclo 2']);
+  assert.deepEqual(p.mesociclos.map(m => totalSemanas(m)), [6, 5]);
+  const m2 = p.mesociclos[1];
+  // En la intensificación todos los back off van a RIR 0
+  const backoffs = m2.dias.flatMap(d => d.ejercicios).filter(e => e.rol === 'backoff');
+  assert.ok(backoffs.length === 4 && backoffs.every(e => e.rir === 0 && e.reps[1] === 8));
+  // La siguiente sesión tras acabar el mesociclo 1 es el día 1 del mesociclo 2
+  const m1 = p.mesociclos[0];
+  const hechas = [];
+  for (let s = 1; s <= totalSemanas(m1); s++) m1.dias.forEach(d => hechas.push({ estado: 'hecha', mesoId: m1.id, semana: s, diaId: d.id }));
+  const h = siguienteHueco(p, hechas);
+  assert.equal(h.meso.id, m2.id);
+  assert.equal(h.semana, 1);
+});
