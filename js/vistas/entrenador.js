@@ -174,8 +174,20 @@ async function pestPrograma(cont, c) {
   if (!c.programa) {
     const ps = await datos.plantillas.listar();
     cont.innerHTML = `<div class="card"><h3 class="mb">Asignar programa</h3>
+      <button class="btn full mb" id="btnProgAndrea">Programa de Andrea (mesociclos 1 y 2)</button>
       ${ps.map(p => `<button class="btn ghost full mb" data-pl="${esc(p.id)}">${esc(p.nombre)}</button>`).join('')}
-      <button class="btn full" id="btnVacio">Empezar uno desde cero</button></div>`;
+      <button class="btn ghost full" id="btnVacio">Empezar uno desde cero</button></div>`;
+    // El programa de Andrea sin pasar por plantilla: sirve para una Andrea creada a mano,
+    // que ya tiene su enlace enviado.
+    $('#btnProgAndrea', cont).onclick = async () => {
+      c.programa = programaAndrea();
+      c.semilla = 'andrea';
+      c.semillaVersion = VERSION_ANDREA;
+      if (!c.alta?.completada) c.alta = clonar(ALTA_ANDREA);
+      await datos.clientes.guardar(c);
+      toast('Programa cargado');
+      render();
+    };
     $$('[data-pl]', cont).forEach(b => b.onclick = async () => {
       const p = ps.find(x => x.id === b.dataset.pl);
       c.programa = renovarIds(sinMeta(p));
