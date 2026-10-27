@@ -109,6 +109,7 @@ main { max-width: 760px; margin: 0 auto; padding: 18px 16px 120px; }
 .btn.peligro { background: var(--danger); color: #fff; }
 .btn.sm { min-height: 34px; padding: 6px 12px; font-size: .85rem; border-radius: var(--r-sm); }
 .btn.full { width: 100%; }
+.enlace-discreto { display: block; margin: 18px auto 0; background: none; border: 0; color: var(--text-faint); font-size: .82rem; text-decoration: underline; cursor: pointer; }
 .btn[disabled] { opacity: .5; pointer-events: none; }
 .icon-btn {
   width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--borde); background: var(--surface);
@@ -117,7 +118,7 @@ main { max-width: 760px; margin: 0 auto; padding: 18px 16px 120px; }
 .icon-btn:hover { color: var(--text); border-color: var(--borde-fuerte); }
 .field { margin-bottom: 12px; }
 .lbl { display: block; font-size: .78rem; color: var(--text-dim); margin-bottom: 5px; }
-input[type=text], input[type=number], input[type=email], input:not([type]), select, textarea {
+input[type=text], input[type=number], input[type=email], input[type=url], input:not([type]), select, textarea {
   width: 100%; background: var(--bg-soft); border: 1px solid var(--borde-fuerte); border-radius: var(--r-sm);
   padding: 10px 12px; min-height: 42px; outline: none; transition: border-color .15s;
 }
@@ -163,12 +164,14 @@ tr.hecha .check { background: var(--ok); color: #0c1a12; border-color: transpare
 
 /* ---------- temporizador ---------- */
 .timer {
-  position: fixed; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom)); transform: translate(-50%, 140%);
+  position: fixed; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom));
+  /* Oculto: fuera de pantalla contando el margen y la zona segura del iPhone, y además invisible. */
+  transform: translate(-50%, calc(100% + 30px + env(safe-area-inset-bottom))); visibility: hidden;
   background: var(--surface-2); border: 1px solid var(--borde-fuerte); border-radius: 99px; padding: 6px 6px 6px 18px;
   display: flex; align-items: center; gap: 8px; z-index: 30; box-shadow: 0 12px 40px -10px rgba(0,0,0,.7);
-  transition: transform .35s var(--ease);
+  transition: transform .35s var(--ease), visibility 0s linear .35s;
 }
-.timer.on { transform: translate(-50%, 0); }
+.timer.on { transform: translate(-50%, 0); visibility: visible; transition: transform .35s var(--ease), visibility 0s; }
 .timer b { font-family: var(--mono); font-size: 1.25rem; min-width: 58px; }
 .timer.fin b { color: var(--accent-strong); }
 

@@ -4,7 +4,7 @@
    · Todo lo demás (Firestore, Google Auth…) no se toca: Firestore tiene su propia
      caché offline y sus conexiones no deben acabar en esta caché.
    Sube CACHE cuando cambies la lista de archivos o la versión del SDK. */
-const CACHE = 'entrenador-v2';
+const CACHE = 'entrenador-v3';
 const SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
 const APP = ['./', './index.html', './css/app.css', './manifest.webmanifest',
   './js/app.js', './js/config.js', './js/util.js', './js/datos.js', './js/biblioteca.js',
