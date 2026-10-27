@@ -191,11 +191,13 @@ a.link.volver { display: inline-flex; align-items: center; min-height: 40px; pad
 .ov.on .modal { transform: none; }
 @media (min-width: 640px) { .ov { align-items: center; } .modal { border-radius: var(--r-lg); } }
 .toast {
-  position: fixed; top: calc(14px + env(safe-area-inset-top)); left: 50%; transform: translate(-50%, -150%);
+  position: fixed; top: calc(14px + env(safe-area-inset-top)); left: 50%;
+  /* Oculto: por encima de la pantalla contando la barra de estado del iPhone, y además invisible. */
+  transform: translate(-50%, calc(-100% - 30px - env(safe-area-inset-top))); visibility: hidden;
   background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 99px; font-weight: 600; font-size: .9rem;
-  z-index: 60; transition: transform .3s var(--ease); max-width: calc(100% - 32px);
+  z-index: 60; transition: transform .3s var(--ease), visibility 0s linear .3s; max-width: calc(100% - 32px);
 }
-.toast.on { transform: translate(-50%, 0); }
+.toast.on { transform: translate(-50%, 0); visibility: visible; transition: transform .3s var(--ease), visibility 0s; }
 
 /* ---------- editor de programa ---------- */
 .meso { border: 1px solid var(--borde-fuerte); border-radius: var(--r-lg); padding: 14px; margin-bottom: 16px; background: var(--bg-soft); }
