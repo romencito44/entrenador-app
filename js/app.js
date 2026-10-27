@@ -13,21 +13,36 @@ import { vistasEntrenador, menuEntrenador } from './vistas/entrenador.js';
 const TABS_ENTRENADOR = [['clientes', 'Clientes'], ['plantillas', 'Plantillas']];
 const TABS_CLIENTE = [['hoy', 'Hoy'], ['historial', 'Historial'], ['progreso', 'Progreso']];
 
-export function ir(ruta) {
-  if (location.hash === '#/' + ruta) render();
-  else location.hash = '/' + ruta;
+/* reemplazar: cambia de vista sin dejar paso en el historial (pestañas de una
+   ficha), para que «atrás» vuelva a la pantalla anterior y no a la pestaña anterior. */
+export function ir(ruta, { reemplazar = false } = {}) {
+  if (location.hash === '#/' + ruta) return render();
+  if (!reemplazar) { location.hash = '/' + ruta; return; }
+  history.replaceState(null, '', location.pathname + location.search + '#/' + ruta);
+  render();
 }
+
+/* Rutas que solo existen en el panel del entrenador. La sesión vista por el
+   entrenador lleva cliente y sesión (#/sesion/c/s); la del cliente, solo la sesión. */
+const esRutaEntrenador = p => ['clientes', 'cliente', 'plantillas', 'plantilla'].includes(p[0]) || (p[0] === 'sesion' && p.length === 3);
 
 function rutaActual() {
   return location.hash.replace(/^#\/?/, '').split('/').filter(Boolean).map(decodeURIComponent);
 }
 
-let renderando = 0;
+let renderando = 0, rutaPintada = null;
 export async function render() {
   const yo = ++renderando;
   const partes = rutaActual();
   const app = $('#app');
   pintarChip();
+
+  // El entrenador que mira como cliente y vuelve atrás a su panel sale de la vista previa.
+  if (datos.estado.vistaPrevia && esRutaEntrenador(partes)) datos.salirDeCliente();
+  pintarAvisoPrevia();
+
+  // Pantalla nueva: arriba del todo. Repintar la misma (guardar, marcar series) no mueve el scroll.
+  if (location.hash !== rutaPintada) { rutaPintada = location.hash; scrollTo(0, 0); }
 
   if (!datos.estado.rol) return pantallaEntrada(app);
 
@@ -96,6 +111,18 @@ function manifiestoCliente() {
             { src: abs('icons/icon-512.png'), sizes: '512x512', type: 'image/png' }],
   };
   $('link[rel="manifest"]').href = 'data:application/manifest+json,' + encodeURIComponent(JSON.stringify(m));
+}
+
+function pintarAvisoPrevia() {
+  const a = $('#avisoPrevia');
+  a.hidden = !datos.estado.vistaPrevia;
+  if (a.hidden) return;
+  a.innerHTML = `<span class="grow">Estás viendo su app como cliente</span><button class="btn sm" id="btnSalirPrevia">Volver al panel</button>`;
+  $('#btnSalirPrevia').onclick = () => {
+    const id = datos.estado.clienteId;
+    datos.salirDeCliente();
+    ir('cliente/' + id);
+  };
 }
 
 /* ---------- chip de estado: local / sincronizado / sin conexión ---------- */
@@ -186,7 +213,8 @@ async function arrancar() {
     }
   }
   manifiestoCliente();
-  addEventListener('hashchange', render);
+  // Al volver atrás con un modal abierto, el modal no se queda encima de la otra pantalla.
+  addEventListener('hashchange', () => { cerrarModal(); render(); });
   render();
 }
 

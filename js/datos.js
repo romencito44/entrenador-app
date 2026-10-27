@@ -14,7 +14,7 @@ import { firebaseConfig, FIREBASE_SDK } from './config.js';
 
 const SESION_CLIENTE = 'entrenador_app_acceso';   // { clienteId, codigo } en modo cliente
 
-export const estado = { modo: 'local', usuario: null, rol: null, clienteId: null };
+export const estado = { modo: 'local', usuario: null, rol: null, clienteId: null, vistaPrevia: false };
 
 let impl = null;
 
@@ -23,7 +23,13 @@ export async function iniciar() {
   impl = usarFirebase ? await crearFirebase() : crearLocal();
   estado.modo = usarFirebase ? 'firebase' : 'local';
   await impl.iniciar();
-  const acceso = leerAcceso();
+  let acceso = leerAcceso();
+  // Con Google dentro, un acceso guardado es el que dejaba antes «Ver como cliente»:
+  // el entrenador se quedaba atrapado en la vista de la clienta. Se descarta.
+  if (acceso && usarFirebase && estado.usuario && !estado.usuario.isAnonymous) {
+    localStorage.removeItem(SESION_CLIENTE);
+    acceso = null;
+  }
   if (acceso) {
     estado.rol = 'cliente';
     estado.clienteId = acceso.clienteId;
@@ -42,12 +48,22 @@ export async function entrarComoCliente(clienteId, codigo) {
   localStorage.setItem(SESION_CLIENTE, JSON.stringify({ clienteId, codigo }));
   estado.rol = 'cliente';
   estado.clienteId = clienteId;
+  estado.vistaPrevia = false;
+}
+
+/* «Ver como cliente» del entrenador: solo en memoria. Como dueño de la ficha
+   ya puede leerla, así que no se registra ningún acceso ni se guarda nada. */
+export function verComoCliente(clienteId) {
+  estado.rol = 'cliente';
+  estado.clienteId = clienteId;
+  estado.vistaPrevia = true;
 }
 
 export function salirDeCliente() {
-  localStorage.removeItem(SESION_CLIENTE);
+  if (!estado.vistaPrevia) localStorage.removeItem(SESION_CLIENTE);
   estado.rol = estado.usuario && !estado.usuario.isAnonymous ? 'entrenador' : null;
   estado.clienteId = null;
+  estado.vistaPrevia = false;
 }
 
 export async function entrarEntrenador() { await impl.entrarEntrenador(); estado.rol = 'entrenador'; }

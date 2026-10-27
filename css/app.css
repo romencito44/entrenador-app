@@ -160,6 +160,9 @@ tr.hecha .check { background: var(--ok); color: #0c1a12; border-color: transpare
 .pr { font-size: .65rem; font-weight: 800; color: var(--gold); display: block; letter-spacing: .04em; }
 .ej-pie { display: flex; justify-content: space-between; align-items: center; padding: 6px 4px 0; }
 .link { background: none; border: 0; color: var(--accent-strong); cursor: pointer; padding: 6px 0; font-size: .85rem; }
+/* Enlaces «← Volver»: en la app instalada no hay botón atrás del navegador, así que necesitan zona de toque. */
+a.link.volver { display: inline-flex; align-items: center; min-height: 40px; padding: 8px 12px 8px 0; font-size: .92rem; font-weight: 600; text-decoration: none; }
+.aviso-previa { display: flex; align-items: center; gap: 10px; max-width: 760px; margin: 0 auto; padding: 8px 16px; font-size: .85rem; color: var(--gold); background: var(--gold-soft); }
 .link.dim { color: var(--text-faint); }
 
 /* ---------- temporizador ---------- */

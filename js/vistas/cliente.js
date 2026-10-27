@@ -142,7 +142,7 @@ async function vEntrenar(app, _, vigente) {
   const { sesiones, hechas } = await cargar();
   if (!vigente()) return;
   const s = sesiones.find(x => x.estado === 'en-curso');
-  if (!s) { ir('hoy'); return; }
+  if (!s) { ir('hoy', { reemplazar: true }); return; }
   pantallaEncendida(true);
 
   // Sugerencias del día (no se guardan: se recalculan con el historial).
@@ -299,7 +299,7 @@ function terminar(s) {
     await datos.sesiones.guardar(datos.estado.clienteId, s);
     cerrarModal(); pararDescanso(); pantallaEncendida(false);
     toast('Entreno guardado');
-    ir('sesion/' + s.id);
+    ir('sesion/' + s.id, { reemplazar: true });
   };
 }
 
@@ -321,7 +321,7 @@ async function vSesion(app, [id], vigente) {
   if (!vigente()) return;
   const s = sesiones.find(x => x.id === id);
   if (!s) { app.innerHTML = `<div class="vacio">No se encuentra esa sesión.</div>`; return; }
-  app.innerHTML = `<a href="#/historial" class="link">← Historial</a>
+  app.innerHTML = `<a href="#/historial" class="link volver">← Historial</a>
     <h2 class="mt">${esc(nombreSesion(s))}</h2><p class="sub mb">${esc(fechaSesion(s))}${s.duracionMin ? ` · ${s.duracionMin} min` : ''}</p>
     ${s.comentario ? `<div class="card" style="border-color:var(--accent)"><p class="sub">Tu entrenador</p><p style="margin:6px 0 0">${esc(s.comentario)}</p></div>` : ''}
     ${htmlDetalleSesion(s)}`;
@@ -350,7 +350,7 @@ async function vAlta(app, _, vigente) {
 
 /* ================= menú ================= */
 export function menuCliente() {
-  const vistaPrevia = datos.estado.usuario && !datos.estado.usuario.isAnonymous;
+  const vistaPrevia = datos.estado.vistaPrevia;
   modal(`<h3 class="mb">Opciones</h3>
     <button class="btn ghost full mb" id="mAlta">Mis datos y objetivo</button>
     <button class="btn ghost full mb" id="mImp">Importar historial del plan antiguo</button>
@@ -365,7 +365,10 @@ export function menuCliente() {
     descargarJSON({ cliente: c, sesiones: ss }, `entrenos-${hoy()}.json`);
     cerrarModal();
   };
-  $('#mSalir')?.addEventListener('click', () => { datos.salirDeCliente(); cerrarModal(); ir('clientes'); });
+  $('#mSalir')?.addEventListener('click', () => {
+    const id = datos.estado.clienteId;
+    datos.salirDeCliente(); cerrarModal(); ir('cliente/' + id);
+  });
 }
 
 export function descargarJSON(obj, nombre) {

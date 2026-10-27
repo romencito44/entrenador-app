@@ -33,6 +33,7 @@ function resumen(c, ss) {
 /* ================= Clientes ================= */
 async function vClientes(app, _, vigente) {
   $('#titulo').textContent = 'Clientes';
+  await guardarYa();
   const cs = await datos.clientes.listar();
   const todas = await Promise.all(cs.map(c => datos.sesiones.listar(c.id)));
   if (!vigente()) return;
@@ -109,9 +110,26 @@ async function crearAndrea() {
 /* ================= Ficha de cliente ================= */
 const PESTANAS = [['resumen', 'Resumen'], ['programa', 'Programa'], ['progreso', 'Progreso'], ['ficha', 'Ficha']];
 const selProgreso = { ej: null, m: '1rm' };
-let guardarProg = null;
+
+/* Guardado diferido de lo que se edita en el editor de programas. Si se pasa a
+   editar otra ficha antes de que salte, lo pendiente se guarda en ese momento
+   (antes se cancelaba y se perdía el último cambio de la ficha anterior). */
+const pendiente = { id: null, t: null, f: null };
+function guardarLuego(id, f) {
+  if (pendiente.id !== id && pendiente.f) { clearTimeout(pendiente.t); pendiente.f(); }
+  clearTimeout(pendiente.t);
+  Object.assign(pendiente, { id, f, t: setTimeout(() => { pendiente.f = null; f(); }, 500) });
+}
+/* Antes de leer una ficha o plantilla: que no se lea la versión sin el último cambio. */
+async function guardarYa() {
+  if (!pendiente.f) return;
+  clearTimeout(pendiente.t);
+  const f = pendiente.f; pendiente.f = null;
+  await f();
+}
 
 async function vCliente(app, [id, pest = 'resumen'], vigente) {
+  await guardarYa();
   const [c, ss] = await Promise.all([datos.clientes.obtener(id), datos.sesiones.listar(id)]);
   if (!vigente()) return;
   if (!c) { app.innerHTML = `<div class="vacio">Cliente no encontrado.</div>`; return; }
@@ -119,19 +137,16 @@ async function vCliente(app, [id, pest = 'resumen'], vigente) {
   const r = resumen(c, ss);
 
   app.innerHTML = `
-    <a href="#/clientes" class="link">← Clientes</a>
+    <a href="#/clientes" class="link volver">← Clientes</a>
     <div class="fila mt mb"><h2 class="grow">${esc(c.nombre)}</h2>
       <button class="btn ghost sm" id="btnEnlace">Enlace</button>
       <button class="btn ghost sm" id="btnVer">Ver como cliente</button>
       <button class="icon-btn" id="btnBorrarCli" title="Borrar cliente" aria-label="Borrar cliente" style="color:var(--danger)">🗑</button></div>
     <div class="seg mb">${PESTANAS.map(([k, n]) => `<button data-p="${k}" class="${k === pest ? 'on' : ''}">${n}</button>`).join('')}</div>
     <div id="pest"></div>`;
-  $$('.seg [data-p]', app).forEach(b => b.onclick = () => ir(`cliente/${id}/${b.dataset.p}`));
+  $$('.seg [data-p]', app).forEach(b => b.onclick = () => ir(`cliente/${id}/${b.dataset.p}`, { reemplazar: true }));
   $('#btnEnlace', app).onclick = () => enlace(c);
-  $('#btnVer', app).onclick = async () => {
-    try { await datos.entrarComoCliente(c.id, c.codigo); ir('hoy'); }
-    catch (e) { toast(e.message); }
-  };
+  $('#btnVer', app).onclick = () => { datos.verComoCliente(c.id); ir('hoy'); };
   $('#btnBorrarCli', app).onclick = () => borrarCliente(c);
   const cont = $('#pest', app);
 
@@ -205,8 +220,7 @@ async function pestPrograma(cont, c) {
     <div id="ed"></div>`;
   editorPrograma($('#ed', cont), c.programa, prog => {
     c.programa = prog;
-    clearTimeout(guardarProg);
-    guardarProg = setTimeout(() => datos.clientes.guardar(c), 500);
+    guardarLuego('cliente/' + c.id, () => datos.clientes.guardar(c));
   });
   $('#btnComoPl', cont).onclick = async () => {
     await datos.plantillas.guardar({ ...renovarIds(c.programa) });
@@ -277,7 +291,7 @@ async function vSesion(app, [cid, sid], vigente) {
   if (!vigente()) return;
   const s = ss.find(x => x.id === sid);
   if (!c || !s) { app.innerHTML = `<div class="vacio">Sesión no encontrada.</div>`; return; }
-  app.innerHTML = `<a href="#/cliente/${esc(cid)}/resumen" class="link">← ${esc(c.nombre)}</a>
+  app.innerHTML = `<a href="#/cliente/${esc(cid)}/resumen" class="link volver">← ${esc(c.nombre)}</a>
     <h2 class="mt">${esc(nombreSesion(s))}</h2>
     <p class="sub mb">${s.estado === 'en-curso' ? 'En curso ahora mismo' : esc(fechaSesion(s))}${s.duracionMin ? ` · ${s.duracionMin} min` : ''}</p>
     ${s.importada ? '' : `<div class="card"><label class="lbl">Comentario para ${esc(c.nombre)}</label>
@@ -298,6 +312,7 @@ async function vSesion(app, [cid, sid], vigente) {
 /* ================= Plantillas ================= */
 async function vPlantillas(app, _, vigente) {
   $('#titulo').textContent = 'Plantillas';
+  await guardarYa();
   const ps = await datos.plantillas.listar();
   if (!vigente()) return;
   app.innerHTML = `<div class="fila mb"><div class="grow"><h2>Plantillas</h2><p class="sub">Programas que asignas a varios clientes y luego ajustas a cada uno.</p></div>
@@ -310,20 +325,19 @@ async function vPlantillas(app, _, vigente) {
   $('#btnNueva', app).onclick = async () => { const p = nuevoPrograma(); await datos.plantillas.guardar(p); ir('plantilla/' + p.id); };
 }
 
-let guardarPl = null;
 async function vPlantilla(app, [id], vigente) {
+  await guardarYa();
   const p = await datos.plantillas.obtener(id);
   if (!vigente()) return;
   if (!p) { app.innerHTML = `<div class="vacio">Plantilla no encontrada.</div>`; return; }
   $('#titulo').textContent = 'Plantilla';
-  app.innerHTML = `<a href="#/plantillas" class="link">← Plantillas</a>
+  app.innerHTML = `<a href="#/plantillas" class="link volver">← Plantillas</a>
     <div class="fila mt mb"><span class="grow"></span>
       <button class="btn ghost sm" id="btnDup">Duplicar</button>
       <button class="btn ghost sm" id="btnBorrarPl" style="color:var(--danger)">Borrar</button></div>
     <div id="ed"></div>`;
   editorPrograma($('#ed', app), p, prog => {
-    clearTimeout(guardarPl);
-    guardarPl = setTimeout(() => datos.plantillas.guardar(prog), 500);
+    guardarLuego('plantilla/' + p.id, () => datos.plantillas.guardar(prog));
   });
   $('#btnDup', app).onclick = async () => {
     const n = { ...renovarIds(sinMeta(p)), nombre: p.nombre + ' (copia)' };
