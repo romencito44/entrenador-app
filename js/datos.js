@@ -18,6 +18,15 @@ export const estado = { modo: 'local', usuario: null, rol: null, clienteId: null
 
 let impl = null;
 
+/* Llega algo nuevo de fuera (lo que anota la clienta, el comentario del entrenador).
+   app.js decide si repinta: no lo hace en pantallas donde se está escribiendo. */
+let oyenteCambio = null, avisoPendiente = null;
+export const alCambiar = f => { oyenteCambio = f; };
+function avisarCambio() {
+  clearTimeout(avisoPendiente);
+  avisoPendiente = setTimeout(() => oyenteCambio?.(), 300);
+}
+
 export async function iniciar() {
   const usarFirebase = !!firebaseConfig && !new URLSearchParams(location.search).has('local');
   impl = usarFirebase ? await crearFirebase() : crearLocal();
@@ -147,6 +156,56 @@ async function crearFirebase() {
   // Firestore no admite undefined: se limpia antes de guardar.
   const limpio = o => JSON.parse(JSON.stringify(o));
 
+  /* Datos vivos en memoria. Antes cada pantalla hacía getDocs/getDoc, que con
+     conexión esperan al servidor: ~1 s por toque. Ahora cada consulta abre un
+     onSnapshot la primera vez (que responde al momento desde la caché del móvil
+     si ya hay datos) y luego se queda escuchando: las siguientes lecturas salen
+     de memoria sin esperar a nadie, y los cambios del otro lado van llegando solos. */
+  const vivos = new Map();   // clave → { docs: Map(id → datos), listo: Promise, off }
+  const copia = o => o ? JSON.parse(JSON.stringify(o)) : o;
+
+  function vivo(clave, ref, esDoc = false) {
+    const k = uidActual() + '|' + clave;
+    let v = vivos.get(k);
+    if (v) return v.listo.then(() => v);
+    v = { docs: new Map() };
+    vivos.set(k, v);
+    v.listo = new Promise((res, rej) => {
+      let primero = true;
+      v.off = F.onSnapshot(ref, snap => {
+        if (esDoc) {
+          v.docs.clear();
+          if (snap.exists()) v.docs.set(snap.id, { ...snap.data(), id: snap.id });
+        } else {
+          snap.docChanges().forEach(ch => {
+            if (ch.type === 'removed') v.docs.delete(ch.doc.id);
+            else v.docs.set(ch.doc.id, { ...ch.doc.data(), id: ch.doc.id });
+          });
+        }
+        if (primero) { primero = false; res(); }
+        // Solo avisa de lo que llega de fuera (otro móvil, el servidor), no de lo que se escribe aquí.
+        else if (!snap.metadata.hasPendingWrites) avisarCambio();
+      }, err => {
+        // Sin permiso o sin red en frío: se olvida para reintentar en la próxima lectura.
+        vivos.delete(k);
+        if (primero) { primero = false; rej(err); } else console.error(err);
+      });
+    });
+    return v.listo.then(() => v);
+  }
+  const consulta = col => vivo('col:' + col, F.query(F.collection(fs, col), F.where('entrenadorUid', '==', uidActual())));
+  const deSesiones = cid => vivo('ses:' + cid, F.collection(fs, 'clientes', cid, 'sesiones'));
+  const delDoc = (col, id) => vivo(`doc:${col}/${id}`, F.doc(fs, col, id), true);
+
+  /* Las escrituras se reflejan en memoria en el acto, para que la pantalla
+     siguiente ya las vea aunque el onSnapshot aún no haya saltado. */
+  function enMemoria(clave, id, datos) {
+    const v = vivos.get(uidActual() + '|' + clave);
+    if (!v) return;
+    if (datos) v.docs.set(id, copia(datos)); else v.docs.delete(id);
+  }
+  const apagarTodo = () => { vivos.forEach(v => v.off?.()); vivos.clear(); };
+
   return {
     iniciar() {
       return new Promise(res => {
@@ -157,7 +216,7 @@ async function crearFirebase() {
       const cred = await A.signInWithPopup(auth, new A.GoogleAuthProvider());
       estado.usuario = cred.user;
     },
-    async salir() { await A.signOut(auth); estado.usuario = null; },
+    async salir() { apagarTodo(); await A.signOut(auth); estado.usuario = null; },
     async entrarCliente(clienteId, codigo) {
       if (!auth.currentUser) {
         const cred = await A.signInAnonymously(auth);
@@ -171,20 +230,26 @@ async function crearFirebase() {
       }
     },
     async listar(col) {
-      const q = F.query(F.collection(fs, col), F.where('entrenadorUid', '==', uidActual()));
-      const snap = await F.getDocs(q);
-      return snap.docs.map(d => ({ ...d.data(), id: d.id }));
+      const v = await consulta(col);
+      return [...v.docs.values()].map(copia);
     },
     async obtener(col, id) {
-      const d = await F.getDoc(F.doc(fs, col, id));
-      return d.exists() ? { ...d.data(), id: d.id } : null;
+      // La ficha suele estar ya en la lista del entrenador; si no (el cliente), se escucha ese documento.
+      const lista = vivos.get(uidActual() + '|col:' + col);
+      if (lista?.docs.has(id)) return copia(lista.docs.get(id));
+      const v = await delDoc(col, id);
+      return copia(v.docs.get(id)) || null;
     },
     async guardar(col, o) {
       const datos = limpio({ ...o, entrenadorUid: o.entrenadorUid || uidActual() });
+      enMemoria('col:' + col, o.id, datos);
+      enMemoria(`doc:${col}/${o.id}`, o.id, datos);
       F.setDoc(F.doc(fs, col, o.id), datos).catch(e => console.error(e));
       return datos;
     },
     async borrar(col, id) {
+      enMemoria('col:' + col, id, null);
+      enMemoria(`doc:${col}/${id}`, id, null);
       if (col === 'clientes') {
         // Primero lo que cuelga del cliente: sin la ficha, las reglas ya no dejarían borrarlo.
         const [ss, acc] = await Promise.all([
@@ -196,13 +261,26 @@ async function crearFirebase() {
       await F.deleteDoc(F.doc(fs, col, id));
     },
     async listarSesiones(cid) {
-      const snap = await F.getDocs(F.collection(fs, 'clientes', cid, 'sesiones'));
-      return snap.docs.map(d => ({ ...d.data(), id: d.id }));
+      const v = await deSesiones(cid);
+      return [...v.docs.values()].map(copia);
     },
     // Sin await al escribir: sin cobertura, setDoc no resuelve hasta que el
     // servidor confirma, pero la escritura ya está en la caché local.
-    async guardarSesion(cid, s) { F.setDoc(F.doc(fs, 'clientes', cid, 'sesiones', s.id), limpio(s)).catch(e => console.error(e)); return s; },
-    async borrarSesion(cid, id) { F.deleteDoc(F.doc(fs, 'clientes', cid, 'sesiones', id)).catch(e => console.error(e)); },
-    async guardarAlta(cid, alta) { F.updateDoc(F.doc(fs, 'clientes', cid), { alta: limpio(alta) }).catch(e => console.error(e)); },
+    async guardarSesion(cid, s) {
+      const datos = limpio(s);
+      enMemoria('ses:' + cid, s.id, datos);
+      F.setDoc(F.doc(fs, 'clientes', cid, 'sesiones', s.id), datos).catch(e => console.error(e));
+      return s;
+    },
+    async borrarSesion(cid, id) {
+      enMemoria('ses:' + cid, id, null);
+      F.deleteDoc(F.doc(fs, 'clientes', cid, 'sesiones', id)).catch(e => console.error(e));
+    },
+    async guardarAlta(cid, alta) {
+      const datos = limpio(alta);
+      [vivos.get(uidActual() + '|col:clientes'), vivos.get(uidActual() + `|doc:clientes/${cid}`)]
+        .forEach(v => { const c = v?.docs.get(cid); if (c) c.alta = copia(datos); });
+      F.updateDoc(F.doc(fs, 'clientes', cid), { alta: datos }).catch(e => console.error(e));
+    },
   };
 }

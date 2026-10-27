@@ -31,6 +31,8 @@
 
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
+/* Sin espera de doble toque para zoom: el toque responde al momento. */
+a, button, input, select, textarea, label, .click, .ses-fila, [data-acc] { touch-action: manipulation; }
 body {
   margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 var(--sans);
   -webkit-tap-highlight-color: transparent; padding-bottom: env(safe-area-inset-bottom);
@@ -74,7 +76,7 @@ main { max-width: 760px; margin: 0 auto; padding: 18px 16px 120px; }
 .card { background: var(--surface); border: 1px solid var(--borde); border-radius: var(--r-lg); padding: 16px; margin-bottom: 12px; }
 .card.click { cursor: pointer; transition: border-color .2s var(--ease), transform .15s var(--ease); }
 .card.click:hover { border-color: var(--borde-fuerte); }
-.card.click:active { transform: scale(.99); }
+.card.click:active { transform: scale(.99); border-color: var(--accent); transition-duration: 0s; }
 .card-h { display: flex; align-items: flex-start; gap: 10px; }
 .card-h .grow { flex: 1; min-width: 0; }
 .fila { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -221,5 +223,6 @@ svg.graf text { fill: var(--text-faint); font: 11px var(--mono); }
 .lista-ses { display: grid; gap: 8px; }
 .ses-fila { display: flex; gap: 10px; align-items: center; padding: 12px; background: var(--surface); border: 1px solid var(--borde); border-radius: var(--r-md); cursor: pointer; }
 .ses-fila .grow b { font-size: .92rem; }
+.ses-fila:active, nav.tabs a:active, .seg button:active { background: var(--surface-2); }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: .001ms !important; animation-duration: .001ms !important; } }

@@ -215,6 +215,14 @@ async function arrancar() {
   manifiestoCliente();
   // Al volver atrás con un modal abierto, el modal no se queda encima de la otra pantalla.
   addEventListener('hashchange', () => { cerrarModal(); render(); });
+  // Datos nuevos de fuera: se repintan las pantallas de solo lectura. Las de escribir
+  // (entreno, editor, ficha, cuestionario) no, para no borrar lo que se está tecleando.
+  datos.alCambiar(() => {
+    // La sesión vista por el entrenador (#/sesion/c/s) tiene la caja de comentario: no se repinta.
+    const p = rutaActual(), vista = p[0] === 'cliente' ? 'cliente/' + (p[2] || 'resumen') : p[0] === 'sesion' && p.length === 3 ? 'sesion-ent' : p[0];
+    const soloLectura = ['clientes', 'cliente/resumen', 'cliente/progreso', 'plantillas', 'hoy', 'historial', 'progreso', 'sesion'];
+    if (soloLectura.includes(vista || (datos.estado.rol === 'cliente' ? 'hoy' : 'clientes')) && !$('#ov').classList.contains('on')) render();
+  });
   render();
 }
 
